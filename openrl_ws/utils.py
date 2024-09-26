@@ -28,6 +28,20 @@ from isaacgym.gymutil import parse_device_str
 from mqe.envs.go1.go1_config import Go1Cfg
 from openrl.envs.vec_env import BaseVecEnv
 
+# configs
+from mqe.envs.field.legged_robot_field_config import LeggedRobotFieldCfg
+from mqe.envs.configs.go1_plane_config import Go1PlaneCfg
+from mqe.envs.configs.go1_gate_config import Go1GateCfg
+from mqe.envs.configs.go1_sheep_config import SingleSheepCfg, NineSheepCfg
+from mqe.envs.configs.go1_football_config import Go1FootballDefenderCfg, Go1Football1vs1Cfg, Go1Football2vs2Cfg
+from mqe.envs.configs.go1_seesaw_config import Go1SeesawCfg
+from mqe.envs.configs.go1_door_config import Go1DoorCfg
+from mqe.envs.configs.go1_pushbox_config import Go1PushboxCfg
+from mqe.envs.configs.go1_tug_config import Go1TugCfg
+from mqe.envs.configs.go1_wrestling_config import Go1WrestlingCfg
+from mqe.envs.configs.go1_rotation_config import Go1RotationCfg
+from mqe.envs.configs.go1_bridge_config import Go1BridgeCfg
+
 def make_env(args, custom_cfg=None, single_agent=False):
     
     env, env_cfg = make_mqe_env(args.task, args, custom_cfg=custom_cfg)
@@ -36,6 +50,19 @@ def make_env(args, custom_cfg=None, single_agent=False):
         env = SingleAgentWrapper(env)
 
     return mqe_openrl_wrapper(env), env_cfg
+
+def custom_cfg(args):
+
+    def fn(cfg:LeggedRobotFieldCfg):
+        
+        if getattr(args, "num_envs", None) is not None:
+            cfg.env.num_envs = args.num_envs
+        
+        cfg.env.record_video = args.record_video
+
+        return cfg
+    
+    return fn
 
 class mqe_openrl_wrapper(gym.Wrapper):
     def __init__(self, env):
@@ -48,6 +75,7 @@ class mqe_openrl_wrapper(gym.Wrapper):
     def reset(self, **kwargs):
         """Reset all environments."""
         obs = self.env.reset()
+        #print(f'obs: {obs}, type: {type(obs)}')
         return obs.cpu().numpy()
 
     def step(self, actions, extra_data: Optional[Dict[str, Any]] = None):

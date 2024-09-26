@@ -179,6 +179,8 @@ def get_args():
         {"name": "--rl_device", "type": str, "default": "cuda:0", "help": 'Device used by the RL algorithm, (cpu, gpu, cuda:0, cuda:1 etc..)'},
         {"name": "--num_envs", "type": int, "help": "Number of environments to create. Overrides config file if provided."},
         {"name": "--seed", "type": int, "default": 0, "help": "Random seed. Overrides config file if provided."},
+        {"name": "--subscenes", "type": int, "default": 4, "help": "Number of subscenes for PhysX parallelization."},
+        {"name": "--num_threads", "type": int, "default": 4, "help": "Number of threads for PhysX."},
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
     ]
     # parse arguments

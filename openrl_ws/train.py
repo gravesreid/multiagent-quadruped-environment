@@ -53,7 +53,7 @@ def train(args):
             cfg=net.cfg,
             project_name="MQE",
             scenario_name=args.task,
-            wandb_entity="ziyanx02",
+            wandb_entity="gravesreid",
             exp_name=args.exp_name,
             log_path="./log",
             use_wandb=args.use_wandb,

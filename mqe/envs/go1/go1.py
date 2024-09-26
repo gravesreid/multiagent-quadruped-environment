@@ -148,6 +148,7 @@ class Go1(LeggedRobotField):
         """ Reset all robots"""
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.compute_observations()
+        #print(f'reset called in go1, obs: {self.obs_buf}, type: {type(self.obs_buf)}')
         return self.obs_buf
     
     def compute_observations(self):
