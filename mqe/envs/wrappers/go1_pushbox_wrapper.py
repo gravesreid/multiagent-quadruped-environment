@@ -52,15 +52,22 @@ class Go1PushboxWrapper(EmptyWrapper):
 
     def step(self, action):
         action = torch.clip(action, -1, 1)
+        #print(f'Action: {action}')
         obs_buf, _, termination, info = self.env.step((action * self.action_scale).reshape(-1, self.action_space.shape[0]))
+        #print(f'Obs: {obs_buf}')
+        #print(f'Termination: {termination}')
+        #print(f'Info: {info}')
 
         box_pos = self.root_states_npc[:, :3] - self.env.env_origins
+        #print(f'Box Pos: {box_pos}')
         
         if getattr(self, "gate_pos", None) is None:
             self._init_extras(obs_buf)
         
         base_pos = obs_buf.base_pos
+        #print(f'Base Pos: {base_pos}')
         base_rpy = obs_buf.base_rpy
+        #print(f'Base RPY: {base_rpy}')
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
         obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]),
                          self.gate_pos, box_pos[:, :2].unsqueeze(1).repeat(1, self.num_agents, 1),

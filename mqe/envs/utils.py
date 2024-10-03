@@ -18,6 +18,7 @@ from mqe.envs.configs.go1_tug_config import Go1TugCfg
 from mqe.envs.configs.go1_wrestling_config import Go1WrestlingCfg
 from mqe.envs.configs.go1_rotation_config import Go1RotationCfg
 from mqe.envs.configs.go1_bridge_config import Go1BridgeCfg
+from mqe.envs.configs.go1_mid_level_config import Go1MidLevelCfg
 
 # wrappers
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
@@ -30,6 +31,7 @@ from mqe.envs.wrappers.go1_tug_wrapper import Go1TugWrapper
 from mqe.envs.wrappers.go1_wrestling_wrapper import Go1WrestlingWrapper
 from mqe.envs.wrappers.go1_rotation_wrapper import Go1RotationWrapper
 from mqe.envs.wrappers.go1_bridge_wrapper import Go1BridgeWrapper
+from mqe.envs.wrappers.go1_mid_level_wrapper import Go1MidLevelWrapper
 
 from mqe.utils import get_args, make_env
 
@@ -100,6 +102,11 @@ ENV_DICT = {
         "class": Go1Object,
         "config": Go1BridgeCfg,
         "wrapper": Go1BridgeWrapper
+    },
+    "go1midlevel": {
+        "class": Go1,
+        "config": Go1MidLevelCfg,
+        "wrapper": Go1MidLevelWrapper
     },
     # "go1door": {
     #     "class": Go1Object,
