@@ -83,7 +83,9 @@ class Go1MidLevelCfg(Go1Cfg):
         termination_terms = [
             "roll",
             "pitch",
+            "episode_length",
         ]
+        
 
     class domain_rand(Go1Cfg.domain_rand):
          init_base_pos_range = dict(

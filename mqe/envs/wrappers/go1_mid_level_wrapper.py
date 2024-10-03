@@ -4,6 +4,7 @@ import numpy
 import torch
 from copy import copy
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
+import random
 
 class Go1MidLevelWrapper(EmptyWrapper):
     def __init__(self, env):
@@ -12,6 +13,7 @@ class Go1MidLevelWrapper(EmptyWrapper):
         self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(14 + self.num_agents,), dtype=float)
         self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=float)
         self.action_scale = torch.tensor([[[2, 0.5, 0.5],],], device="cuda").repeat(self.num_envs, self.num_agents, 1)
+        self.num_steps = 0
 
         # for hard setting of reward scales (not recommended)
         
@@ -37,63 +39,103 @@ class Go1MidLevelWrapper(EmptyWrapper):
         }
 
     def _init_extras(self, obs):
+        # make random point position
+        random_x = random.uniform(0.5, 1.5)
+        random_y = random.uniform(-0.5, 0.5)
+        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+        self.frame_left = self.point_pos.reshape(-1, 2)
+        self.frame_right = self.point_pos.reshape(-1, 2)
+        self.frame_left[:, 1] += 0.25
+        self.frame_right[:, 1] -= 0.25
+        self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
+        print(f'point distance shape: {self.point_distance.shape}')
 
-        self.gate_pos = obs.env_info["gate_deviation"]
-        print(f'env_info: {obs.env_info}')
-        print(f'gate_pos: {self.gate_pos}')
-        self.gate_pos[:, 0] += self.BarrierTrack_kwargs["init"]["block_length"] + self.BarrierTrack_kwargs["gate"]["block_length"] / 2
-        print(f'gate_pos: {self.gate_pos}')
-        self.gate_pos = self.gate_pos.unsqueeze(1).repeat(1, self.num_agents, 1)
-        print(f'gate_pos: {self.gate_pos}')
-        self.frame_left = self.gate_pos.reshape(-1, 2)
-        self.frame_right = self.gate_pos.reshape(-1, 2)
-        self.frame_left[:, 1] += self.BarrierTrack_kwargs["gate"]["width"] / 2
-        self.frame_right[:, 1] -= self.BarrierTrack_kwargs["gate"]["width"] / 2
-        self.gate_distance = self.gate_pos.reshape(-1, 2)[:, 0]
-
-        self.target_pos = torch.zeros_like(self.gate_pos, dtype=self.gate_pos.dtype, device=self.gate_pos.device)
-        self.target_pos[:, :, 0] = self.BarrierTrack_kwargs["init"]["block_length"] + self.BarrierTrack_kwargs["gate"]["block_length"] + self.BarrierTrack_kwargs["plane"]["block_length"] / 2
-        self.target_pos[:, 0, 1] = self.BarrierTrack_kwargs["track_width"] / 4
-        self.target_pos[:, 1, 1] = - self.BarrierTrack_kwargs["track_width"] / 4
+        self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
+        self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
+        self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
+        self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
         self.target_pos = self.target_pos.reshape(-1, 2)
+        print(f'target pos shape: {self.target_pos.shape}')
 
         return
 
     def reset(self):
         obs_buf = self.env.reset()
 
-        if getattr(self, "gate_pos", None) is None:
+        if getattr(self, "point_pos", None) is None:
             self._init_extras(obs_buf)
+
+        # make new random point position
+        random_x = random.uniform(0.5, 1.5)
+        random_y = random.uniform(-0.5, 0.5)
+        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+        print(f'new point position: {self.point_pos}')
+        self.frame_left = self.point_pos.reshape(-1, 2)
+        self.frame_right = self.point_pos.reshape(-1, 2)
+        self.frame_left[:, 1] += 0.25
+        self.frame_right[:, 1] -= 0.25
+        self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
+
+        self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
+        self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
+        self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
+        self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
+        self.target_pos = self.target_pos.reshape(-1, 2)
+        print(f'new target position: {self.target_pos}')
 
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
-        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.gate_pos], dim=2)
+        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.point_pos], dim=2)
         #obs = 0
         return obs
 
     def step(self, action):
+        self.num_steps += 1
         action = torch.clip(action, -1, 1)
         obs_buf, x, termination, info = self.env.step((action * self.action_scale).reshape(-1, self.action_space.shape[0]))
+       # print(f'termination: {termination}')
+       # print(f'termination shape: {termination.shape}')
       #  print(f'Obs: {obs_buf}')
       #  print(f'info: {info}')
       #  print(f'x: {x}')
+    
 
-        if getattr(self, "gate_pos", None) is None:
+        if getattr(self, "point_pos", None) is None:
             self._init_extras(obs_buf)
         
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
-        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.gate_pos], dim=2)
+        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.point_pos], dim=2)
         #print(f'obs: {obs}')       
         self.reward_buffer["step count"] += 1
         reward = torch.zeros([self.env.num_envs, self.env.num_agents], device=self.env.device)
+        if self.num_steps >= 500:
+            self.num_steps = 0
+            termination = torch.tensor([True], device=self.env.device)
+            random_x = random.uniform(0.5, 1.5)
+            random_y = random.uniform(-0.5, 0.5)
+            self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+            #print(f'new point position: {self.point_pos}')
+            self.frame_left = self.point_pos.reshape(-1, 2)
+            self.frame_right = self.point_pos.reshape(-1, 2)
+            self.frame_left[:, 1] += 0.25
+            self.frame_right[:, 1] -= 0.25
+            self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
+
+            self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
+            self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
+            self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
+            self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
+            self.target_pos = self.target_pos.reshape(-1, 2)
+            #print(f'new target position: {self.target_pos}')
+            #print(f'termination: {termination}')
        
         # approach reward
         if self.target_reward_scale != 0:
             distance_to_taget = torch.norm(base_pos[:, :2] - self.target_pos, p=2, dim=1)
-           # print(f'distance_to_taget: {distance_to_taget}')
+            #print(f'distance_to_taget: {distance_to_taget}')
        
             if not hasattr(self, "last_distance_to_taget"):
                 self.last_distance_to_taget = copy(distance_to_taget)
@@ -117,7 +159,7 @@ class Go1MidLevelWrapper(EmptyWrapper):
         # success reward
         if self.success_reward_scale != 0:
             success_reward = torch.zeros([self.env.num_envs * self.env.num_agents], device="cuda")
-            success_reward[base_pos[:, 0] > self.gate_distance + 0.25] = self.success_reward_scale
+            success_reward[base_pos[:, 0] > self.point_distance + 0.25] = self.success_reward_scale
             reward += success_reward.reshape([self.env.num_envs, self.env.num_agents])
             self.reward_buffer["success reward"] += torch.sum(success_reward).cpu()
        
@@ -161,4 +203,5 @@ class Go1MidLevelWrapper(EmptyWrapper):
        
         reward = reward.sum(dim=1).unsqueeze(1).repeat(1, self.num_agents)
         #obs, reward = 0, 0
+        #print(f'termination: {termination}')
         return obs, reward, termination, info
