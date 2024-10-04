@@ -42,20 +42,18 @@ class Go1MidLevelWrapper(EmptyWrapper):
         # make random point position
         random_x = random.uniform(0.5, 1.5)
         random_y = random.uniform(-0.5, 0.5)
-        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
         self.frame_left = self.point_pos.reshape(-1, 2)
         self.frame_right = self.point_pos.reshape(-1, 2)
         self.frame_left[:, 1] += 0.25
         self.frame_right[:, 1] -= 0.25
         self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
-        print(f'point distance shape: {self.point_distance.shape}')
 
         self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
         self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
         self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
         self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
         self.target_pos = self.target_pos.reshape(-1, 2)
-        print(f'target pos shape: {self.target_pos.shape}')
 
         return
 
@@ -68,7 +66,7 @@ class Go1MidLevelWrapper(EmptyWrapper):
         # make new random point position
         random_x = random.uniform(0.5, 1.5)
         random_y = random.uniform(-0.5, 0.5)
-        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
         print(f'new point position: {self.point_pos}')
         self.frame_left = self.point_pos.reshape(-1, 2)
         self.frame_right = self.point_pos.reshape(-1, 2)
@@ -86,7 +84,10 @@ class Go1MidLevelWrapper(EmptyWrapper):
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
-        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.point_pos], dim=2)
+        print(f'base info shape: {base_info.shape}')
+        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]),
+                        self.point_pos], dim=2)
+        print(f'obs shape: {obs.shape}')
         #obs = 0
         return obs
 
@@ -113,10 +114,11 @@ class Go1MidLevelWrapper(EmptyWrapper):
         reward = torch.zeros([self.env.num_envs, self.env.num_agents], device=self.env.device)
         if self.num_steps >= 500:
             self.num_steps = 0
-            termination = torch.tensor([True], device=self.env.device)
+            termination = torch.tensor([True], device=self.env.device).repeat(self.num_envs, 1).squeeze(1)
+            print(f'termination shape: {termination.shape}')
             random_x = random.uniform(0.5, 1.5)
             random_y = random.uniform(-0.5, 0.5)
-            self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(1, self.num_agents, 1)
+            self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
             #print(f'new point position: {self.point_pos}')
             self.frame_left = self.point_pos.reshape(-1, 2)
             self.frame_right = self.point_pos.reshape(-1, 2)

@@ -9,7 +9,7 @@ task="go1midlevel"
 #task="go1pushbox"
 random_seed=0
 device=0
-num_envs=1
+num_envs=500
 num_steps=40000000
 
 algo="jrpo"
