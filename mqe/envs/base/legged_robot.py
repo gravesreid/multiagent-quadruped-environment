@@ -895,6 +895,10 @@ class LeggedRobot(BaseTask):
         self.npc_indices = torch.zeros(self.num_envs, self.num_npcs, dtype=torch.int32, device=self.device, requires_grad=False)
         for i in range(self.num_envs):
             for j in range(self.num_agents + self.num_npcs):
+                print(f'i, j: {i}, {j}')
+                print(f'actor_handles: {self.actor_handles[i][j]}')
+                print(f'actor handles type: {type(self.actor_handles)}')
+                print(f' shape of actor_handles: {len(self.actor_handles)}')
                 self.actor_indices[i, j] = self.gym.get_actor_index(self.envs[i], self.actor_handles[i][j], gymapi.DOMAIN_SIM)
                 if j < self.num_agents:
                     self.agent_indices[i, j] = self.gym.get_actor_index(self.envs[i], self.actor_handles[i][j], gymapi.DOMAIN_SIM)

@@ -4,6 +4,8 @@ from mqe.envs.go1.go1 import Go1
 from mqe.envs.npc.go1_sheep import Go1Sheep
 from mqe.envs.npc.go1_object import Go1Object
 from mqe.envs.npc.go1_football_defender import Go1FootballDefender
+from mqe.envs.npc.go1_double_object import Go1DoubleObject
+from mqe.envs.npc.go1_minimal_object import MinimalGo1Object
 
 # configs
 from mqe.envs.field.legged_robot_field_config import LeggedRobotFieldCfg
@@ -19,6 +21,8 @@ from mqe.envs.configs.go1_wrestling_config import Go1WrestlingCfg
 from mqe.envs.configs.go1_rotation_config import Go1RotationCfg
 from mqe.envs.configs.go1_bridge_config import Go1BridgeCfg
 from mqe.envs.configs.go1_mid_level_config import Go1MidLevelCfg
+from mqe.envs.configs.go1_double_mid_level_config import Go1DoubleObjectCfg
+from mqe.envs.configs.go1_minimal_config import MinimalConfig
 
 # wrappers
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
@@ -32,6 +36,8 @@ from mqe.envs.wrappers.go1_wrestling_wrapper import Go1WrestlingWrapper
 from mqe.envs.wrappers.go1_rotation_wrapper import Go1RotationWrapper
 from mqe.envs.wrappers.go1_bridge_wrapper import Go1BridgeWrapper
 from mqe.envs.wrappers.go1_mid_level_wrapper import Go1MidLevelWrapper
+from mqe.envs.wrappers.go1_double_mid_level_wrapper import Go1DoubleObjectWrapper
+from mqe.envs.wrappers.go1_minimal_wrapper import MinimalWrapper
 
 from mqe.utils import get_args, make_env
 
@@ -104,10 +110,21 @@ ENV_DICT = {
         "wrapper": Go1BridgeWrapper
     },
     "go1midlevel": {
-        "class": Go1,
+        "class": Go1Object,
         "config": Go1MidLevelCfg,
         "wrapper": Go1MidLevelWrapper
     },
+    "go1doubleobject": {
+        "class": Go1DoubleObject,
+        "config": Go1DoubleObjectCfg,
+        "wrapper": Go1DoubleObjectWrapper
+    },
+    "go1minimalobject": {
+        "class": MinimalGo1Object,
+        "config": MinimalConfig,
+        "wrapper": MinimalWrapper
+    },
+
     # "go1door": {
     #     "class": Go1Object,
     #     "config": Go1DoorCfg,
@@ -118,6 +135,7 @@ ENV_DICT = {
 def make_mqe_env(env_name: str, args=None, custom_cfg=None) -> Tuple[LeggedRobotField, LeggedRobotFieldCfg]:
     
     env_dict = ENV_DICT[env_name]
+    print(env_dict['class'])
 
     if callable(custom_cfg):
         env_dict["config"] = custom_cfg(env_dict["config"])

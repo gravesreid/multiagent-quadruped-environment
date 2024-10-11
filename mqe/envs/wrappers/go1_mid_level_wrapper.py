@@ -10,10 +10,13 @@ class Go1MidLevelWrapper(EmptyWrapper):
     def __init__(self, env):
         super().__init__(env)
 
-        self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(14 + self.num_agents,), dtype=float)
+        self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(18 + self.num_agents,), dtype=float)
         self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=float)
         self.action_scale = torch.tensor([[[2, 0.5, 0.5],],], device="cuda").repeat(self.num_envs, self.num_agents, 1)
         self.num_steps = 0
+
+        
+        self.obs_ids = torch.eye(self.num_agents, dtype=torch.float32, device=self.device).repeat(self.num_envs, 1).reshape(self.num_envs, self.num_agents, -1)
 
         # for hard setting of reward scales (not recommended)
         
@@ -39,22 +42,6 @@ class Go1MidLevelWrapper(EmptyWrapper):
         }
 
     def _init_extras(self, obs):
-        # make random point position
-        random_x = random.uniform(0.5, 1.5)
-        random_y = random.uniform(-0.5, 0.5)
-        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
-        self.frame_left = self.point_pos.reshape(-1, 2)
-        self.frame_right = self.point_pos.reshape(-1, 2)
-        self.frame_left[:, 1] += 0.25
-        self.frame_right[:, 1] -= 0.25
-        self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
-
-        self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
-        self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
-        self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
-        self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
-        self.target_pos = self.target_pos.reshape(-1, 2)
-
         return
 
     def reset(self):
@@ -63,31 +50,18 @@ class Go1MidLevelWrapper(EmptyWrapper):
         if getattr(self, "point_pos", None) is None:
             self._init_extras(obs_buf)
 
-        # make new random point position
-        random_x = random.uniform(0.5, 1.5)
-        random_y = random.uniform(-0.5, 0.5)
-        self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
-        print(f'new point position: {self.point_pos}')
-        self.frame_left = self.point_pos.reshape(-1, 2)
-        self.frame_right = self.point_pos.reshape(-1, 2)
-        self.frame_left[:, 1] += 0.25
-        self.frame_right[:, 1] -= 0.25
-        self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
+        ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, 3) - self.env_origins
+        ball_pos = ball_pos.unsqueeze(1).repeat(1, 2, 1)
 
-        self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
-        self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
-        self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
-        self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
-        self.target_pos = self.target_pos.reshape(-1, 2)
-        print(f'new target position: {self.target_pos}')
+        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, 2, 1)
 
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
-        print(f'base info shape: {base_info.shape}')
         obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]),
-                        self.point_pos], dim=2)
-        print(f'obs shape: {obs.shape}')
+                        ], dim=2)
+        base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])[:, :2, :]
+        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), ball_pos, ball_vel], dim=2)
         #obs = 0
         return obs
 
@@ -105,38 +79,21 @@ class Go1MidLevelWrapper(EmptyWrapper):
         if getattr(self, "point_pos", None) is None:
             self._init_extras(obs_buf)
         
+        ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, 3) - self.env_origins
+        ball_pos = ball_pos.unsqueeze(1).repeat(1, 2, 1)
+
+        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, 2, 1)
+        
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
-        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.point_pos], dim=2)
-        #print(f'obs: {obs}')       
+        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), ball_pos, ball_vel], dim=2)
         self.reward_buffer["step count"] += 1
         reward = torch.zeros([self.env.num_envs, self.env.num_agents], device=self.env.device)
-        if self.num_steps >= 500:
-            self.num_steps = 0
-            termination = torch.tensor([True], device=self.env.device).repeat(self.num_envs, 1).squeeze(1)
-            print(f'termination shape: {termination.shape}')
-            random_x = random.uniform(0.5, 1.5)
-            random_y = random.uniform(-0.5, 0.5)
-            self.point_pos = torch.tensor([[random_x, random_y]], device=self.env.device).unsqueeze(1).repeat(self.num_envs, self.num_agents, 1)
-            #print(f'new point position: {self.point_pos}')
-            self.frame_left = self.point_pos.reshape(-1, 2)
-            self.frame_right = self.point_pos.reshape(-1, 2)
-            self.frame_left[:, 1] += 0.25
-            self.frame_right[:, 1] -= 0.25
-            self.point_distance = self.point_pos.reshape(-1, 2)[:, 0]
-
-            self.target_pos = torch.zeros_like(self.point_pos, dtype=self.point_pos.dtype, device=self.point_pos.device)
-            self.target_pos[:, :, 0] = self.point_pos[:, :, 0] + 0.25
-            self.target_pos[:, 0, 1] = self.point_pos[:, 0, 1] + 0.25
-            self.target_pos[:, 1, 1] = self.point_pos[:, 1, 1] - 0.25
-            self.target_pos = self.target_pos.reshape(-1, 2)
-            #print(f'new target position: {self.target_pos}')
-            #print(f'termination: {termination}')
        
         # approach reward
         if self.target_reward_scale != 0:
-            distance_to_taget = torch.norm(base_pos[:, :2] - self.target_pos, p=2, dim=1)
+            distance_to_taget = torch.norm(base_pos[:, :2] - ball_pos.squeeze()[:,:2])
             #print(f'distance_to_taget: {distance_to_taget}')
        
             if not hasattr(self, "last_distance_to_taget"):
@@ -161,7 +118,7 @@ class Go1MidLevelWrapper(EmptyWrapper):
         # success reward
         if self.success_reward_scale != 0:
             success_reward = torch.zeros([self.env.num_envs * self.env.num_agents], device="cuda")
-            success_reward[base_pos[:, 0] > self.point_distance + 0.25] = self.success_reward_scale
+            success_reward[base_pos[:, 0] > ball_pos.squeeze()[:,0] + 0.25] = self.success_reward_scale
             reward += success_reward.reshape([self.env.num_envs, self.env.num_agents])
             self.reward_buffer["success reward"] += torch.sum(success_reward).cpu()
        
