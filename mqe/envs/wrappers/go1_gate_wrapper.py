@@ -65,6 +65,14 @@ class Go1GateWrapper(EmptyWrapper):
         base_rpy = obs_buf.base_rpy
         base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])
         obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), self.gate_pos], dim=2)
+        print(f'self.obs_ids shape: {self.obs_ids.shape}')
+        print(f'base_info shape: {base_info.shape}')
+        print(f'torch.flip(base_info, [1]) shape: {torch.flip(base_info, [1]).shape}')
+        print(f'self.gate_pos shape: {self.gate_pos.shape}')
+        print(f'obs shape: {obs.shape}')
+
+        print(f'self.obs_ids: {self.obs_ids}')
+        print(f'base_info: {base_info}')
         #obs = 0
         return obs
 

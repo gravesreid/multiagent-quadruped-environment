@@ -12,7 +12,7 @@ class MinimalConfig(Go1Cfg):
     class asset(Go1Cfg.asset):
         file_npc = "{LEGGED_GYM_ROOT_DIR}/resources/objects/ball.urdf"
         name_npc = "ball"
-        npc_collision = True
+        npc_collision = False
         fix_npc_base_link = False
         npc_gravity = True
 
@@ -36,10 +36,10 @@ class MinimalConfig(Go1Cfg):
             ),
             gate = dict(
                 block_length = 5.0,
-                width = 1.5,
+                width = 5,
                 depth = 0.1, # size along the forward axis
                 offset = (0, 0),
-                random = (0, 0.5),
+                random = (0, 0),
             ),
             wall = dict(
                 block_length = 0.1
@@ -68,7 +68,7 @@ class MinimalConfig(Go1Cfg):
         ]
         init_states_npc = [
             init_state_class(
-                pos = [6, 0, 0.6],
+                pos = [0, 0, 0.15],
                 rot = [0.0, 0.0, 0.0, 1.0],
                 lin_vel = [0.0, 0.0, 0.0],
                 ang_vel = [0.0, 0.0, 0.0],
@@ -93,13 +93,16 @@ class MinimalConfig(Go1Cfg):
             y= [-0.1, 0.1],
         )
         init_npc_base_pos_range = dict(
-            x= [-0.5, 0.5],
-            y= [-0.5, 0.5],
+            x= [2, 6],
+            y= [-2.25, 2.25],
         )
 
     class rewards(Go1Cfg.rewards):
         class scales:
-            box_x_movement_reward_scale = 10
+            #box_x_movement_reward_scale = 10
+            ball_approach_reward_scale = 10
+            contact_punishment_scale = -2
+            angle_punishment_scale = -0.1
             # tracking_ang_vel = 0.05
             # world_vel_l2norm = -1.
             # legs_energy_substeps = -1e-5

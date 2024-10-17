@@ -7,7 +7,7 @@ class Go1MidLevelCfg(Go1Cfg):
     class env(Go1Cfg.env):
         env_name = "go1pushbox"
         num_envs = 1
-        num_agents = 2
+        num_agents = 1
         num_npcs = 1
         episode_length_s = 15 # episode length in seconds
 
@@ -69,12 +69,6 @@ class Go1MidLevelCfg(Go1Cfg):
         multi_init_state = True
         init_state_class = Go1Cfg.init_state
         init_states = [
-            init_state_class(
-                pos = [0.0, 0.0, 0.42],
-                rot = [0.0, 0.0, 0.0, 1.0],
-                lin_vel = [0.0, 0.0, 0.0],
-                ang_vel = [0.0, 0.0, 0.0],
-            ),
             init_state_class(
                 pos = [0.0, 0.0, 0.42],
                 rot = [0.0, 0.0, 0.0, 1.0],

@@ -51,9 +51,9 @@ class Go1MidLevelWrapper(EmptyWrapper):
             self._init_extras(obs_buf)
 
         ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, 3) - self.env_origins
-        ball_pos = ball_pos.unsqueeze(1).repeat(1, 2, 1)
+        ball_pos = ball_pos.unsqueeze(1).repeat(1, self.num_agents, 1)
 
-        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, 2, 1)
+        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, self.num_agents, 1)
 
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
@@ -80,9 +80,9 @@ class Go1MidLevelWrapper(EmptyWrapper):
             self._init_extras(obs_buf)
         
         ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, 3) - self.env_origins
-        ball_pos = ball_pos.unsqueeze(1).repeat(1, 2, 1)
+        ball_pos = ball_pos.unsqueeze(1).repeat(1, self.num_agents, 1)
 
-        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, 2, 1)
+        ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, self.num_agents, 1)
         
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
@@ -93,7 +93,7 @@ class Go1MidLevelWrapper(EmptyWrapper):
        
         # approach reward
         if self.target_reward_scale != 0:
-            distance_to_taget = torch.norm(base_pos[:, :2] - ball_pos.squeeze()[:,:2])
+            distance_to_taget = torch.norm(base_pos.squeeze()[:2] - ball_pos.squeeze()[:2])
             #print(f'distance_to_taget: {distance_to_taget}')
        
             if not hasattr(self, "last_distance_to_taget"):
@@ -118,7 +118,10 @@ class Go1MidLevelWrapper(EmptyWrapper):
         # success reward
         if self.success_reward_scale != 0:
             success_reward = torch.zeros([self.env.num_envs * self.env.num_agents], device="cuda")
-            success_reward[base_pos[:, 0] > ball_pos.squeeze()[:,0] + 0.25] = self.success_reward_scale
+            # if distance to target is less than 0.25, give success reward
+            #if self.last_distance_to_taget < 0.1:
+            #    success_reward = self.success_reward_scale
+            #success_reward[base_pos[:, 0] > ball_pos.squeeze()[:,0] + 0.25] = self.success_reward_scale
             reward += success_reward.reshape([self.env.num_envs, self.env.num_agents])
             self.reward_buffer["success reward"] += torch.sum(success_reward).cpu()
        
