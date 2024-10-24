@@ -1,17 +1,15 @@
-export PYTHONPATH=$PYTHONPATH:/home/meesh/Desktop/CMU/Trustworthy_AI/multiagent-quadruped-environment
 
-#export LD_LIBRARY_PATH=/home/ziyan/anaconda3/envs/mqe/lib
 # task="go1football-defender"
 #task="go1gate"
 #task="go1midlevel"
-task="go1doubleobject"
+# task="go1doubleobject"
 #task="go1minimalobject"
 #task="go1seesaw"
 #task="go1sheep-easy"
 #task="go1sheep-hard"
 #task="go1pushbox-plane"
 #task="go1revolvingdoor"
-#task="go1pushbox"
+task="go1pushbox"
 random_seed=0
 device=0
 num_envs=500
