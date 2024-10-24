@@ -13,7 +13,7 @@ from mqe.envs.go1.go1 import Go1
 
 class Go1Object(Go1):
 
-    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless):
+    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless): 
 
         self.npc_collision = getattr(cfg.asset, "npc_collision", True)
         self.fix_npc_base_link = getattr(cfg.asset, "fix_npc_base_link", False)

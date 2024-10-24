@@ -20,7 +20,7 @@ from mqe.envs.configs.go1_tug_config import Go1TugCfg
 from mqe.envs.configs.go1_wrestling_config import Go1WrestlingCfg
 from mqe.envs.configs.go1_rotation_config import Go1RotationCfg
 from mqe.envs.configs.go1_bridge_config import Go1BridgeCfg
-from mqe.envs.configs.go1_mid_level_config import Go1MidLevelCfg
+from mqe.envs.configs.go1_high_level_config import Go1HighLevelCfg
 from mqe.envs.configs.go1_double_mid_level_config import Go1DoubleObjectCfg
 from mqe.envs.configs.go1_minimal_config import MinimalConfig
 
@@ -35,7 +35,7 @@ from mqe.envs.wrappers.go1_tug_wrapper import Go1TugWrapper
 from mqe.envs.wrappers.go1_wrestling_wrapper import Go1WrestlingWrapper
 from mqe.envs.wrappers.go1_rotation_wrapper import Go1RotationWrapper
 from mqe.envs.wrappers.go1_bridge_wrapper import Go1BridgeWrapper
-from mqe.envs.wrappers.go1_mid_level_wrapper import Go1MidLevelWrapper
+from mqe.envs.wrappers.go1_high_level_wrapper import Go1HighLevelWrapper
 from mqe.envs.wrappers.go1_double_mid_level_wrapper import Go1DoubleObjectWrapper
 from mqe.envs.wrappers.go1_minimal_wrapper import MinimalWrapper
 
@@ -111,8 +111,8 @@ ENV_DICT = {
     },
     "go1midlevel": {
         "class": Go1Object,
-        "config": Go1MidLevelCfg,
-        "wrapper": Go1MidLevelWrapper
+        "config": Go1HighLevelCfg,
+        "wrapper": Go1HighLevelWrapper
     },
     "go1doubleobject": {
         "class": Go1DoubleObject,
