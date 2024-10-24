@@ -1,3 +1,5 @@
+export PYTHONPATH=$PYTHONPATH:/home/meesh/Desktop/CMU/Trustworthy_AI/multiagent-quadruped-environment
+
 #export LD_LIBRARY_PATH=/home/ziyan/anaconda3/envs/mqe/lib
 # task="go1football-defender"
 #task="go1gate"
@@ -34,4 +36,4 @@ python ./openrl_ws/train.py --headless --num_envs $num_envs --train_timesteps $n
     --seed 0 \
     --exp_name test \
     --config $cfg \
-    --use_wandb 
+    # --use_wandb
