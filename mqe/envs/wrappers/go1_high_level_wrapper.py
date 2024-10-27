@@ -29,10 +29,10 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
 
         # simulated path that rl policy spits out
-        self.target_points = [np.array([[2, 4, 0.25], [2, 2, 0.25]]),
-                      np.array([[3, 4, 0.25], [3, 2, 0.25]]),
-                      np.array([[4, 4, 0.25], [4, 2, 0.25]]),
-                      np.array([[5, 4, 0.25], [5, 2, 0.25]])]
+        self.target_points = [np.array([[2, 5, 0.25], [2, 2, 0.25]]),
+                      np.array([[3, 5, 0.25], [3, 2, 0.25]]),
+                      np.array([[4, 4, 0.25], [4, 3, 0.25]]),
+                      np.array([[5, 5, 0.25], [5, 2, 0.25]])]
         
 
 
