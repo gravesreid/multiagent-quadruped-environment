@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from copy import copy
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 
 from isaacgym import gymapi, gymutil
 from isaacgym.torch_utils import *
@@ -19,12 +21,13 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         # for hard setting of reward scales (not recommended)
         
-        self.box_x_movement_reward_scale = 1
+        #self.box_x_movement_reward_scale = 1
 
         self.reward_buffer = {
             "box movement reward": 0,
             "step count": 0,
             "target_reward": 0,
+            "trajectory_reward": 0,
         } 
 
 
@@ -47,8 +50,11 @@ class Go1HighLevelWrapper(EmptyWrapper):
         # Precompute interpolated paths
         self.interpolated_path1 = self.interpolate_catmull_rom(control_points_path1)
         self.interpolated_path2 = self.interpolate_catmull_rom(control_points_path2)
+
+        self.agent_path = torch.tensor([], device=self.env.device)
         
-    def draw_spheres(self, target_points):
+
+    def draw_spheres(self,target_points):
         self.env.gym.clear_lines(self.env.viewer)
         num_lines = 5  # Number of lines per sphere
         line_length = 0.12  # Length of each line segment
@@ -156,7 +162,6 @@ class Go1HighLevelWrapper(EmptyWrapper):
         # Clear previous lines
         self.env.gym.clear_lines(self.env.viewer)
         
-        # Draw spheres at target points
         self.draw_spheres(self.target_points)
         self.draw_smooth_path(self.interpolated_path1, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 1 in magenta
         self.draw_smooth_path(self.interpolated_path2, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 2 in cyan
@@ -177,6 +182,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
             self._init_extras(obs_buf)
         
         base_pos = obs_buf.base_pos
+        current_pos = base_pos[:, :2]
+        self.agent_path = torch.cat([self.agent_path, current_pos.unsqueeze(0)], dim=0)
         #print(f'Base Pos: {base_pos}')
         base_rpy = obs_buf.base_rpy
         #print(f'Base RPY: {base_rpy}')
@@ -188,6 +195,17 @@ class Go1HighLevelWrapper(EmptyWrapper):
         self.reward_buffer["step count"] += 1
         self.reward_buffer["target_reward"] += 0
         reward = torch.zeros([self.env.num_envs, 1], device=self.env.device)
+
+        # Calculate trajectory reward
+        if self.target_path_reward_scale != 0:
+            if len(self.agent_path) >= len(self.target_points):
+                target_points_xy = [points[:,:2] for points in self.target_points]
+                target_points_np = np.concatenate(target_points_xy, axis=0)
+                agent_path_np = self.agent_path.cpu().numpy().reshape(-1, 2)
+                distance, _ = fastdtw(agent_path_np, target_points_np, dist=euclidean)
+                self.reward_buffer["trajectory_reward"] += -distance
+                reward += -distance
+
 
         if self.box_x_movement_reward_scale != 0:
             if self.last_box_pos != None:
