@@ -1,6 +1,6 @@
 import gym
 from gym import spaces
-import numpy
+import numpy as np
 import torch
 from copy import copy
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
@@ -73,9 +73,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
         print('target_points shape: ', target_points.shape)
 
 
-        import numpy as np
 
-        # Draw lines between the points in rand_vector
+# Draw lines between the points in rand_vector
         for i in range(rand_vector.shape[1] - 1):
             start_point = rand_vector[:, i, :]
             end_point = rand_vector[:, i + 1, :]
@@ -87,45 +86,15 @@ class Go1HighLevelWrapper(EmptyWrapper):
             print('start_pose: ', start_pose)
             print('startpose.p: ', start_pose.p)
 
-            start_x = round(start_pose.p.x, 2)
-            start_y = round(start_pose.p.y, 2)
-            start_z = round(start_pose.p.z, 2)
-            end_x = round(end_pose.p.x, 2)
-            end_y = round(end_pose.p.y, 2)
-            end_z = round(end_pose.p.z, 2)
-            verts = np.array([[start_x, start_y, start_z],
-                              [end_x, end_y, end_z]], dtype=np.float32)
-            colors = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)  # RGB values for red color
-
-            # verts[0][0] = (start_x, start_y, start_z)
-            print('verts[0]: ', verts[0])
-            print('verts[0][0]: ', verts[0][0])
+            # Define the color as a Vec3 object
+            color = gymapi.Vec3(1.0, 0.0, 0.0)  # RGB values for red color
             
-            gymutil.draw_line(verts[0], verts[1], colors[0], self.env.gym, self.env.viewer, self.env.sim)
+            # Draw the line in each environment
+            for env in self.env.envs:
+                gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
  
 
         
-
-        # # Set the properties of the geometry (position and color)
-
-        # pose = gymapi.Transform()
-
-        # pose.p = gymapi.Vec3(x, y, z)  # Replace x, y, z with point coordinates
-
-        
-
-        # color = gymapi.Vec3(1, 0, 0)  # RGB values for red color
-
-        
-
-        # # Draw the sphere at the specified location
-
-        # gym.draw_sphere_geom(env, sphere_geom, pose, color)
-
-
-
-
-
         action = torch.clip(action, -1, 1)
         #print(f'Action: {action}')
         obs_buf, _, termination, info = self.env.step((action * self.action_scale).reshape(-1, self.action_space.shape[0]))
