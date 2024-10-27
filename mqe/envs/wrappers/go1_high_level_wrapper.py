@@ -193,18 +193,38 @@ class Go1HighLevelWrapper(EmptyWrapper):
                          self.root_states_npc[:, 3:7].unsqueeze(1).repeat(1, self.num_agents, 1)], dim=2)
 
         self.reward_buffer["step count"] += 1
-        self.reward_buffer["target_reward"] += 0
+
         reward = torch.zeros([self.env.num_envs, 1], device=self.env.device)
 
         # Calculate trajectory reward
         if self.target_path_reward_scale != 0:
             if len(self.agent_path) >= len(self.target_points):
-                target_points_xy = [points[:,:2] for points in self.target_points]
-                target_points_np = np.concatenate(target_points_xy, axis=0)
+                # target_points_xy = [points[:,:2] for points in self.target_points]
+                interp_points = np.array([self.interpolated_path1[:, :2], self.interpolated_path2[:, :2]])
+                interp_points = interp_points.reshape(-1, 2, 2)
+
+                interp_points = np.concatenate(interp_points, axis=0)
                 agent_path_np = self.agent_path.cpu().numpy().reshape(-1, 2)
-                distance, _ = fastdtw(agent_path_np, target_points_np, dist=euclidean)
+                distance, _ = fastdtw(agent_path_np, interp_points, dist=euclidean)
                 self.reward_buffer["trajectory_reward"] += -distance
                 reward += -distance
+
+        if self.box_x_movement_reward_scale != 0:
+            if self.last_box_pos != None:
+                x_movement = (box_pos - self.last_box_pos)[:, 0]
+                x_movement[self.env.reset_ids] = 0
+                box_x_movement_reward = self.box_x_movement_reward_scale * x_movement
+                reward[:, 0] += box_x_movement_reward
+                self.reward_buffer["box movement reward"] += torch.sum(box_x_movement_reward).cpu()
+
+
+        if self.target_reward_scale != 0:
+            current_pos_cpu = current_pos.cpu().numpy()[:2]
+            self.target_points = np.array(self.target_points)
+            target_distance = torch.sum(torch.abs(torch.tensor(self.target_points[-1, :, :2] - np.array(current_pos_cpu))))
+            target_reward = -self.target_path_reward_scale * target_distance
+            reward += target_reward
+            self.reward_buffer["target_reward"] += torch.sum(target_reward).cpu()
 
 
         if self.box_x_movement_reward_scale != 0:
