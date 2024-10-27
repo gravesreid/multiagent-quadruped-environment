@@ -60,27 +60,27 @@ class Go1HighLevelWrapper(EmptyWrapper):
     def step(self, action):
 
         target_points = self.target_points
+
         def draw_lines(target_points):
-            for i in range(len(target_points)):
-                # Draw lines between the points in rand_vector
-                # for i in range(rand_vector.shape[1] - 1):
-                start_point = target_points[i][0]
-                end_point = target_points[i][1]
+            for points_pair in target_points:
+                start_point = points_pair[0]
+                end_point = points_pair[1]
+
                 start_pose = gymapi.Transform()
                 end_pose = gymapi.Transform()
-                start_pose.p = gymapi.Vec3(start_point[0, 0].item(), start_point[0, 1].item(), start_point[0, 2].item())
-                end_pose.p = gymapi.Vec3(end_point[0, 0].item(), end_point[0, 1].item(), end_point[0, 2].item())
-                
-                print('start_pose: ', start_pose)
-                print('startpose.p: ', start_pose.p)
 
-                # Define the color as a Vec3 object
-                color = gymapi.Vec3(1.0, 0.0, 0.0)  # RGB values for red color
+                # Set the start and end positions based on the target points
+                start_pose.p = gymapi.Vec3(start_point[0], start_point[1], start_point[2])
+                end_pose.p = gymapi.Vec3(end_point[0], end_point[1], end_point[2])
+
+                # Define the color as a Vec3 object (red)
+                color = gymapi.Vec3(1.0, 0.0, 0.0)
 
                 # Draw the line in each environment
                 for env in self.env.envs:
                     gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
 
+        # Draw lines between target points
         draw_lines(target_points)
 
 
