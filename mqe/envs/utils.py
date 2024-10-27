@@ -109,7 +109,7 @@ ENV_DICT = {
         "config": Go1BridgeCfg,
         "wrapper": Go1BridgeWrapper
     },
-    "go1midlevel": {
+    "go1highlevel": {
         "class": Go1Object,
         "config": Go1HighLevelCfg,
         "wrapper": Go1HighLevelWrapper
