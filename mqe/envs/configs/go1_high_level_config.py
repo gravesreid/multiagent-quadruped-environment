@@ -111,6 +111,7 @@ class Go1HighLevelCfg(Go1Cfg):
     class rewards(Go1Cfg.rewards):
         class scales:
             box_x_movement_reward_scale = 10
+            target_path_reward_scale = 1
             # tracking_ang_vel = 0.05
             # world_vel_l2norm = -1.
             # legs_energy_substeps = -1e-5

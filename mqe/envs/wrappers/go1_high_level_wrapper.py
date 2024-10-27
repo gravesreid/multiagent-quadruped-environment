@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from copy import copy
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
 
 from isaacgym import gymapi, gymutil
 from isaacgym.torch_utils import *
@@ -19,12 +21,13 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         # for hard setting of reward scales (not recommended)
         
-        self.box_x_movement_reward_scale = 1
+        #self.box_x_movement_reward_scale = 1
 
         self.reward_buffer = {
             "box movement reward": 0,
             "step count": 0,
             "target_reward": 0,
+            "trajectory_reward": 0,
         } 
 
 
@@ -34,6 +37,44 @@ class Go1HighLevelWrapper(EmptyWrapper):
                       np.array([[4, 5, 0.25], [4, 3, 0.25]]),
                       np.array([[5, 5, 0.25], [5, 2, 0.25]])]
         
+        self.agent_path = torch.tensor([], device=self.env.device)
+        
+    def draw_spheres(self,target_points):
+        self.env.gym.clear_lines(self.env.viewer)
+        num_lines = 5  # Number of lines per sphere
+        line_length = 0.12  # Length of each line segment
+
+        for points_pair in target_points:
+            for point in points_pair:
+                center_pose = gymapi.Transform()
+                center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
+                
+                # Draw random lines around each point to simulate a sphere
+                for _ in range(num_lines):
+                    # Generate a random direction for the line
+                    direction = torch.randn(3).to(self.env.device)
+                    direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
+
+                    start_pose = gymapi.Transform()
+                    end_pose = gymapi.Transform()
+
+                    start_pose.p = gymapi.Vec3(
+                        center_pose.p.x + direction[0].item(),
+                        center_pose.p.y + direction[1].item(),
+                        center_pose.p.z + direction[2].item()
+                    )
+                    end_pose.p = gymapi.Vec3(
+                        center_pose.p.x - direction[0].item(),
+                        center_pose.p.y - direction[1].item(),
+                        center_pose.p.z - direction[2].item()
+                    )
+
+                    # Define the color as a Vec3 object (e.g., red)
+                    color = gymapi.Vec3(1.0, 0.0, 0.0)
+
+                    # Draw the line in each environment
+                    for env in self.env.envs:
+                        gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
 
 
     def _init_extras(self, obs):
@@ -63,50 +104,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
         return obs
 
     def step(self, action):
-
-        target_points = self.target_points
-
-        def draw_spheres(target_points):
-            self.env.gym.clear_lines(self.env.viewer)
-            num_lines = 5  # Number of lines per sphere
-            line_length = 0.12  # Length of each line segment
-
-            for points_pair in target_points:
-                for point in points_pair:
-                    center_pose = gymapi.Transform()
-                    center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
-                    
-                    # Draw random lines around each point to simulate a sphere
-                    for _ in range(num_lines):
-                        # Generate a random direction for the line
-                        direction = torch.randn(3).to(self.env.device)
-                        direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
-
-                        start_pose = gymapi.Transform()
-                        end_pose = gymapi.Transform()
-
-                        start_pose.p = gymapi.Vec3(
-                            center_pose.p.x + direction[0].item(),
-                            center_pose.p.y + direction[1].item(),
-                            center_pose.p.z + direction[2].item()
-                        )
-                        end_pose.p = gymapi.Vec3(
-                            center_pose.p.x - direction[0].item(),
-                            center_pose.p.y - direction[1].item(),
-                            center_pose.p.z - direction[2].item()
-                        )
-
-                        # Define the color as a Vec3 object (e.g., red)
-                        color = gymapi.Vec3(1.0, 0.0, 0.0)
-
-                        # Draw the line in each environment
-                        for env in self.env.envs:
-                            gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
-
         # Draw spheres at target points
-        draw_spheres(target_points)
-
-
+        self.draw_spheres(self.target_points)
 
         action = torch.clip(action, -1, 1)
         #print(f'Action: {action}')
@@ -122,6 +121,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
             self._init_extras(obs_buf)
         
         base_pos = obs_buf.base_pos
+        current_pos = base_pos[:, :2]
+        self.agent_path = torch.cat([self.agent_path, current_pos.unsqueeze(0)], dim=0)
         #print(f'Base Pos: {base_pos}')
         base_rpy = obs_buf.base_rpy
         #print(f'Base RPY: {base_rpy}')
@@ -133,6 +134,17 @@ class Go1HighLevelWrapper(EmptyWrapper):
         self.reward_buffer["step count"] += 1
         self.reward_buffer["target_reward"] += 0
         reward = torch.zeros([self.env.num_envs, 1], device=self.env.device)
+
+        # Calculate trajectory reward
+        if self.target_path_reward_scale != 0:
+            if len(self.agent_path) >= len(self.target_points):
+                target_points_xy = [points[:,:2] for points in self.target_points]
+                target_points_np = np.concatenate(target_points_xy, axis=0)
+                agent_path_np = self.agent_path.cpu().numpy().reshape(-1, 2)
+                distance, _ = fastdtw(agent_path_np, target_points_np, dist=euclidean)
+                self.reward_buffer["trajectory_reward"] += -distance
+                reward += -distance
+
 
         if self.box_x_movement_reward_scale != 0:
             if self.last_box_pos != None:
