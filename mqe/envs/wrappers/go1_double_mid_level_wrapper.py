@@ -104,6 +104,8 @@ class Go1DoubleObjectWrapper(EmptyWrapper):
 
 
         ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, -1, 3) - self.env_origins.unsqueeze(1)
+        print(f"ball_pos: {ball_pos}")
+        print(f"ball_pos shape: {ball_pos.shape}")
         #ball_pos_1 = ball_pos_1.unsqueeze(1).repeat(1, 1, 1)
         #ball_pos_2 = self.root_states_npc[1, :3].reshape(self.num_envs, 3) - self.env_origins
         #ball_pos_2 = ball_pos_2.unsqueeze(1).repeat(1, 1, 1)
