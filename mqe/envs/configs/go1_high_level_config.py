@@ -2,7 +2,7 @@ import numpy as np
 from mqe.utils.helpers import merge_dict
 from mqe.envs.go1.go1 import Go1Cfg
 
-class Go1MidLevelCfg(Go1Cfg):
+class Go1HighLevelCfg(Go1Cfg):
 
     class env(Go1Cfg.env):
         env_name = "go1pushbox"

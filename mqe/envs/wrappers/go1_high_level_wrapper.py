@@ -7,7 +7,7 @@ from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
 
 from isaacgym.torch_utils import *
 
-class Go1MidLevelWrapper(EmptyWrapper):
+class Go1HighLevelWrapper(EmptyWrapper):
     def __init__(self, env):
         super().__init__(env)
 
