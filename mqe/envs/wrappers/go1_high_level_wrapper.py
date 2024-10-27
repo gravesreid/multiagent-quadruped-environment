@@ -26,10 +26,15 @@ class Go1HighLevelWrapper(EmptyWrapper):
             "step count": 0,
             "target_reward": 0,
         } 
+
+
+        # simulated path that rl policy spits out
         self.target_points = [np.array([[2, 4, 0.25], [2, 2, 0.25]]),
                       np.array([[3, 4, 0.25], [3, 2, 0.25]]),
                       np.array([[4, 4, 0.25], [4, 2, 0.25]]),
                       np.array([[5, 4, 0.25], [5, 2, 0.25]])]
+        
+
 
     def _init_extras(self, obs):
 
@@ -61,49 +66,44 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         target_points = self.target_points
 
-        def draw_lines(target_points):
+        def draw_spheres(target_points):
+            num_lines = 50  # Number of lines per sphere
+            line_length = 0.12  # Length of each line segment
+
             for points_pair in target_points:
-                start_point = points_pair[0]
-                end_point = points_pair[1]
+                for point in points_pair:
+                    center_pose = gymapi.Transform()
+                    center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
+                    
+                    # Draw random lines around each point to simulate a sphere
+                    for _ in range(num_lines):
+                        # Generate a random direction for the line
+                        direction = torch.randn(3).to(self.env.device)
+                        direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
 
-                start_pose = gymapi.Transform()
-                end_pose = gymapi.Transform()
+                        start_pose = gymapi.Transform()
+                        end_pose = gymapi.Transform()
 
-                # Set the start and end positions based on the target points
-                start_pose.p = gymapi.Vec3(start_point[0], start_point[1], start_point[2])
-                end_pose.p = gymapi.Vec3(end_point[0], end_point[1], end_point[2])
+                        start_pose.p = gymapi.Vec3(
+                            center_pose.p.x + direction[0].item(),
+                            center_pose.p.y + direction[1].item(),
+                            center_pose.p.z + direction[2].item()
+                        )
+                        end_pose.p = gymapi.Vec3(
+                            center_pose.p.x - direction[0].item(),
+                            center_pose.p.y - direction[1].item(),
+                            center_pose.p.z - direction[2].item()
+                        )
 
-                # Define the color as a Vec3 object (red)
-                color = gymapi.Vec3(1.0, 0.0, 0.0)
+                        # Define the color as a Vec3 object (e.g., red)
+                        color = gymapi.Vec3(1.0, 0.0, 0.0)
 
-                # Draw the line in each environment
-                for env in self.env.envs:
-                    gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
+                        # Draw the line in each environment
+                        for env in self.env.envs:
+                            gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
 
-        # Draw lines between target points
-        draw_lines(target_points)
-
-
-
-
-        # # self.env.gym.clear_lines(self.env.viewer)
-
-        # # Define position range for x and y
-        # init_npc_base_pos_range = dict(
-        #     x=[2, 8],
-        #     y=[1, 6],
-        # )
-
-        # rand_vector = torch.rand((1, 2, 3), device=self.env.device)
-        # rand_vector[:, :, 0] = rand_vector[:, :, 0] * (init_npc_base_pos_range['x'][1] - init_npc_base_pos_range['x'][0]) + init_npc_base_pos_range['x'][0]
-        # rand_vector[:, :, 1] = rand_vector[:, :, 1] * (init_npc_base_pos_range['y'][1] - init_npc_base_pos_range['y'][0]) + init_npc_base_pos_range['y'][0]
-        # rand_vector[:, :, 2] = 0.25
-        # target_points = rand_vector
-
-        # print('target_points: ', target_points)
-        # print('target_points shape: ', target_points.shape)
-
-
+        # Draw spheres at target points
+        draw_spheres(target_points)
 
 
 
