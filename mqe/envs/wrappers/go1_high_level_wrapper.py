@@ -26,8 +26,10 @@ class Go1HighLevelWrapper(EmptyWrapper):
             "step count": 0,
             "target_reward": 0,
         } 
-
-        self.target_points = []
+        self.target_points = [np.array([[2, 4, 0.25], [2, 2, 0.25]]),
+                      np.array([[3, 4, 0.25], [3, 2, 0.25]]),
+                      np.array([[4, 4, 0.25], [4, 2, 0.25]]),
+                      np.array([[5, 4, 0.25], [5, 2, 0.25]])]
 
     def _init_extras(self, obs):
 
@@ -55,46 +57,56 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         return obs
 
-    def step(self, action, target_points=None):
+    def step(self, action):
 
-        # Define position range for x and y
-        init_npc_base_pos_range = dict(
-            x=[2, 6],
-            y=[-2.25, 2.25],
-        )
+        target_points = self.target_points
+        def draw_lines(target_points):
+            for i in range(len(target_points)):
+                # Draw lines between the points in rand_vector
+                # for i in range(rand_vector.shape[1] - 1):
+                start_point = target_points[i][0]
+                end_point = target_points[i][1]
+                start_pose = gymapi.Transform()
+                end_pose = gymapi.Transform()
+                start_pose.p = gymapi.Vec3(start_point[0, 0].item(), start_point[0, 1].item(), start_point[0, 2].item())
+                end_pose.p = gymapi.Vec3(end_point[0, 0].item(), end_point[0, 1].item(), end_point[0, 2].item())
+                
+                print('start_pose: ', start_pose)
+                print('startpose.p: ', start_pose.p)
 
-        rand_vector = torch.rand((1, 2, 3), device=self.env.device)
-        rand_vector[:, :, 0] = rand_vector[:, :, 0] * (init_npc_base_pos_range['x'][1] - init_npc_base_pos_range['x'][0]) + init_npc_base_pos_range['x'][0]
-        rand_vector[:, :, 1] = rand_vector[:, :, 1] * (init_npc_base_pos_range['y'][1] - init_npc_base_pos_range['y'][0]) + init_npc_base_pos_range['y'][0]
-        rand_vector[:, :, 2] = 0.12
-        target_points = rand_vector
+                # Define the color as a Vec3 object
+                color = gymapi.Vec3(1.0, 0.0, 0.0)  # RGB values for red color
 
-        print('target_points: ', target_points)
-        print('target_points shape: ', target_points.shape)
+                # Draw the line in each environment
+                for env in self.env.envs:
+                    gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
+
+        draw_lines(target_points)
 
 
 
-# Draw lines between the points in rand_vector
-        for i in range(rand_vector.shape[1] - 1):
-            start_point = rand_vector[:, i, :]
-            end_point = rand_vector[:, i + 1, :]
-            start_pose = gymapi.Transform()
-            end_pose = gymapi.Transform()
-            start_pose.p = gymapi.Vec3(start_point[0, 0].item(), start_point[0, 1].item(), start_point[0, 2].item())
-            end_pose.p = gymapi.Vec3(end_point[0, 0].item(), end_point[0, 1].item(), end_point[0, 2].item())
-            
-            print('start_pose: ', start_pose)
-            print('startpose.p: ', start_pose.p)
 
-            # Define the color as a Vec3 object
-            color = gymapi.Vec3(1.0, 0.0, 0.0)  # RGB values for red color
-            
-            # Draw the line in each environment
-            for env in self.env.envs:
-                gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
- 
+        # # self.env.gym.clear_lines(self.env.viewer)
 
-        
+        # # Define position range for x and y
+        # init_npc_base_pos_range = dict(
+        #     x=[2, 8],
+        #     y=[1, 6],
+        # )
+
+        # rand_vector = torch.rand((1, 2, 3), device=self.env.device)
+        # rand_vector[:, :, 0] = rand_vector[:, :, 0] * (init_npc_base_pos_range['x'][1] - init_npc_base_pos_range['x'][0]) + init_npc_base_pos_range['x'][0]
+        # rand_vector[:, :, 1] = rand_vector[:, :, 1] * (init_npc_base_pos_range['y'][1] - init_npc_base_pos_range['y'][0]) + init_npc_base_pos_range['y'][0]
+        # rand_vector[:, :, 2] = 0.25
+        # target_points = rand_vector
+
+        # print('target_points: ', target_points)
+        # print('target_points shape: ', target_points.shape)
+
+
+
+
+
         action = torch.clip(action, -1, 1)
         #print(f'Action: {action}')
         obs_buf, _, termination, info = self.env.step((action * self.action_scale).reshape(-1, self.action_space.shape[0]))
