@@ -67,7 +67,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
         target_points = self.target_points
 
         def draw_spheres(target_points):
-            num_lines = 50  # Number of lines per sphere
+            self.env.gym.clear_lines(self.env.viewer)
+            num_lines = 5  # Number of lines per sphere
             line_length = 0.12  # Length of each line segment
 
             for points_pair in target_points:
