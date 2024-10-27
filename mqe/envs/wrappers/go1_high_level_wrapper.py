@@ -30,10 +30,100 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         # simulated path that rl policy spits out
         self.target_points = [np.array([[2, 5, 0.25], [2, 2, 0.25]]),
-                      np.array([[3, 5, 0.25], [3, 2, 0.25]]),
-                      np.array([[4, 5, 0.25], [4, 3, 0.25]]),
-                      np.array([[5, 5, 0.25], [5, 2, 0.25]])]
+                  np.array([[3, 5, 0.25], [3, 2, 0.25]]),
+                  np.array([[4, 5, 0.25], [4, 2.75, 0.25]]),
+                  np.array([[5, 5, 0.25], [5, 3.5, 0.25]]),
+                  np.array([[6, 5, 0.25], [6, 3, 0.25]]),
+                  np.array([[7, 5, 0.25], [7, 2, 0.25]])]
+
+        # Add buffer for the first and last array
+        self.target_points.insert(0, self.target_points[0])
+        self.target_points.append(self.target_points[-1])
+
+        # Extract control points for each path
+        control_points_path1 = np.array([p[0] for p in self.target_points])
+        control_points_path2 = np.array([p[1] for p in self.target_points])
+
+        # Precompute interpolated paths
+        self.interpolated_path1 = self.interpolate_catmull_rom(control_points_path1)
+        self.interpolated_path2 = self.interpolate_catmull_rom(control_points_path2)
         
+    def draw_spheres(self, target_points):
+        self.env.gym.clear_lines(self.env.viewer)
+        num_lines = 5  # Number of lines per sphere
+        line_length = 0.12  # Length of each line segment
+
+        for points_pair in target_points:
+            for point in points_pair:
+                center_pose = gymapi.Transform()
+                center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
+                
+                # Draw random lines around each point to simulate a sphere
+                for _ in range(num_lines):
+                    # Generate a random direction for the line
+                    direction = torch.randn(3).to(self.env.device)
+                    direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
+
+                    start_pose = gymapi.Transform()
+                    end_pose = gymapi.Transform()
+
+                    start_pose.p = gymapi.Vec3(
+                        center_pose.p.x + direction[0].item(),
+                        center_pose.p.y + direction[1].item(),
+                        center_pose.p.z + direction[2].item()
+                    )
+                    end_pose.p = gymapi.Vec3(
+                        center_pose.p.x - direction[0].item(),
+                        center_pose.p.y - direction[1].item(),
+                        center_pose.p.z - direction[2].item()
+                    )
+
+                    # Define the color as a Vec3 object (e.g., red)
+                    color = gymapi.Vec3(1.0, 0.0, 0.0)
+
+                    # Draw the line in each environment
+                    for env in self.env.envs:
+                        gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
+
+
+        
+    def interpolate_catmull_rom(self, points, num_points=100):
+        def catmull_rom(p0, p1, p2, p3, t):
+            """Compute a point on a Catmull-Rom spline."""
+            return 0.5 * (
+                (2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t ** 2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3
+            )
+
+
+        # Ensure that we have enough points by padding start and end
+        if len(points) < 2:
+            return points  # No interpolation needed for fewer than 2 points
+
+        if len(points) == 2:
+            # Linear interpolation if only two points are provided
+            return np.linspace(points[0], points[1], num_points)
+
+
+        path_points = []
+        for i in range(len(points) - 3):
+            for t in np.linspace(0, 1, num_points):
+                point = catmull_rom(points[i], points[i + 1], points[i + 2], points[i + 3], t)
+                path_points.append(point)
+
+        return np.array(path_points)
+
+    def draw_smooth_path(self, interpolated_path, color):
+        # Draw lines between consecutive points on the interpolated path
+        for i in range(len(interpolated_path) - 1):
+            start_pose = gymapi.Transform()
+            end_pose = gymapi.Transform()
+
+            start_pose.p = gymapi.Vec3(*interpolated_path[i])
+            end_pose.p = gymapi.Vec3(*interpolated_path[i + 1])
+
+            for env in self.env.envs:
+                gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
+            
 
 
     def _init_extras(self, obs):
@@ -63,48 +153,13 @@ class Go1HighLevelWrapper(EmptyWrapper):
         return obs
 
     def step(self, action):
-
-        target_points = self.target_points
-
-        def draw_spheres(target_points):
-            self.env.gym.clear_lines(self.env.viewer)
-            num_lines = 5  # Number of lines per sphere
-            line_length = 0.12  # Length of each line segment
-
-            for points_pair in target_points:
-                for point in points_pair:
-                    center_pose = gymapi.Transform()
-                    center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
-                    
-                    # Draw random lines around each point to simulate a sphere
-                    for _ in range(num_lines):
-                        # Generate a random direction for the line
-                        direction = torch.randn(3).to(self.env.device)
-                        direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
-
-                        start_pose = gymapi.Transform()
-                        end_pose = gymapi.Transform()
-
-                        start_pose.p = gymapi.Vec3(
-                            center_pose.p.x + direction[0].item(),
-                            center_pose.p.y + direction[1].item(),
-                            center_pose.p.z + direction[2].item()
-                        )
-                        end_pose.p = gymapi.Vec3(
-                            center_pose.p.x - direction[0].item(),
-                            center_pose.p.y - direction[1].item(),
-                            center_pose.p.z - direction[2].item()
-                        )
-
-                        # Define the color as a Vec3 object (e.g., red)
-                        color = gymapi.Vec3(1.0, 0.0, 0.0)
-
-                        # Draw the line in each environment
-                        for env in self.env.envs:
-                            gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
-
+        # Clear previous lines
+        self.env.gym.clear_lines(self.env.viewer)
+        
         # Draw spheres at target points
-        draw_spheres(target_points)
+        self.draw_spheres(self.target_points)
+        self.draw_smooth_path(self.interpolated_path1, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 1 in magenta
+        self.draw_smooth_path(self.interpolated_path2, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 2 in cyan
 
 
 
