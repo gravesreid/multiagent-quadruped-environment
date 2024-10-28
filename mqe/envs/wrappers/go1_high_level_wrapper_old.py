@@ -17,40 +17,44 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(20 + self.num_agents,), dtype=float)
         self.action_space = spaces.Box(low=-1, high=1, shape=(3,), dtype=float)
-        self.action_scale = torch.tensor([[[2, 0.5, 0.5],]], device="cuda").repeat(self.num_envs, self.num_agents, 1)
+        self.action_scale = torch.tensor([[[2, 0.5, 0.5],],], device="cuda").repeat(self.num_envs, self.num_agents, 1)
 
-        # Reward buffer
+        # for hard setting of reward scales (not recommended)
+        
+        #self.box_x_movement_reward_scale = 1
+
         self.reward_buffer = {
             "box movement reward": 0,
             "step count": 0,
             "target_reward": 0,
             "trajectory_reward": 0,
-        }
+        } 
 
-        # Simulated path that rl policy spits out
-        self.target_points = torch.tensor([
-            [[2, 5, 0.25], [2, 2, 0.25]],
-            [[3, 5, 0.25], [3, 2, 0.25]],
-            [[4, 4.5, 0.25], [4, 2.75, 0.25]],
-            [[5, 4, 0.25], [5, 3.25, 0.25]],
-            [[6, 4.25, 0.25], [6, 3.25, 0.25]],
-            [[7, 3.5, 0.25], [7, 2, 0.25]]
-        ], device=self.env.device)
+
+        # simulated path that rl policy spits out
+        self.target_points = [np.array([[2, 5, 0.25], [2, 2, 0.25]]),
+                  np.array([[3, 5, 0.25], [3, 2, 0.25]]),
+                  np.array([[4, 4.5, 0.25], [4, 2.75, 0.25]]),
+                  np.array([[5, 4, 0.25], [5, 3.25, 0.25]]),
+                  np.array([[6, 4.25, 0.25], [6, 3.25, 0.25]]),
+                  np.array([[7, 3.5, 0.25], [7, 2, 0.25]])]
 
         # Add buffer for the first and last array
-        self.target_points = torch.cat((self.target_points[:1], self.target_points, self.target_points[-1:]), dim=0)
+        self.target_points.insert(0, self.target_points[0])
+        self.target_points.append(self.target_points[-1])
 
         # Extract control points for each path
-        control_points_path1 = self.target_points[:, 0, :]
-        control_points_path2 = self.target_points[:, 1, :]
+        control_points_path1 = np.array([p[0] for p in self.target_points])
+        control_points_path2 = np.array([p[1] for p in self.target_points])
 
         # Precompute interpolated paths
         self.interpolated_path1 = self.interpolate_catmull_rom(control_points_path1)
         self.interpolated_path2 = self.interpolate_catmull_rom(control_points_path2)
 
-        self.agent_path = torch.empty((0, 2), device=self.env.device)
+        self.agent_path = torch.tensor([], device=self.env.device)
+        
 
-    def draw_spheres(self, target_points):
+    def draw_spheres(self,target_points):
         self.env.gym.clear_lines(self.env.viewer)
         num_lines = 5  # Number of lines per sphere
         line_length = 0.12  # Length of each line segment
@@ -58,12 +62,12 @@ class Go1HighLevelWrapper(EmptyWrapper):
         for points_pair in target_points:
             for point in points_pair:
                 center_pose = gymapi.Transform()
-                center_pose.p = gymapi.Vec3(point[0].item(), point[1].item(), point[2].item())
-
+                center_pose.p = gymapi.Vec3(point[0], point[1], point[2])
+                
                 # Draw random lines around each point to simulate a sphere
                 for _ in range(num_lines):
                     # Generate a random direction for the line
-                    direction = torch.randn(3, device=self.env.device)
+                    direction = torch.randn(3).to(self.env.device)
                     direction = direction / torch.norm(direction) * (line_length / 2)  # Normalize and scale
 
                     start_pose = gymapi.Transform()
@@ -87,6 +91,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
                     for env in self.env.envs:
                         gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
 
+
+        
     def interpolate_catmull_rom(self, points, num_points=100):
         def catmull_rom(p0, p1, p2, p3, t):
             """Compute a point on a Catmull-Rom spline."""
@@ -94,21 +100,23 @@ class Go1HighLevelWrapper(EmptyWrapper):
                 (2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t ** 2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3
             )
 
+
         # Ensure that we have enough points by padding start and end
         if len(points) < 2:
             return points  # No interpolation needed for fewer than 2 points
 
         if len(points) == 2:
             # Linear interpolation if only two points are provided
-            return torch.linspace(points[0], points[1], num_points, device=self.env.device)
+            return np.linspace(points[0], points[1], num_points)
+
 
         path_points = []
         for i in range(len(points) - 3):
-            for t in torch.linspace(0, 1, num_points, device=self.env.device):
+            for t in np.linspace(0, 1, num_points):
                 point = catmull_rom(points[i], points[i + 1], points[i + 2], points[i + 3], t)
                 path_points.append(point)
 
-        return torch.stack(path_points)
+        return np.array(path_points)
 
     def draw_smooth_path(self, interpolated_path, color):
         # Draw lines between consecutive points on the interpolated path
@@ -116,13 +124,13 @@ class Go1HighLevelWrapper(EmptyWrapper):
             start_pose = gymapi.Transform()
             end_pose = gymapi.Transform()
 
-            start_pose.p = gymapi.Vec3(*interpolated_path[i].tolist())
-            end_pose.p = gymapi.Vec3(*interpolated_path[i + 1].tolist())
+            start_pose.p = gymapi.Vec3(*interpolated_path[i])
+            end_pose.p = gymapi.Vec3(*interpolated_path[i + 1])
 
             for env in self.env.envs:
                 gymutil.draw_line(start_pose.p, end_pose.p, color, self.env.gym, self.env.viewer, env)
 
-    def chamfer_distance(self, A, B):
+    def chamfer_distance(A, B):
         """
         Computes the Chamfer distance between two sets of points A and B using PyTorch.
         A and B are tensors of shape [N, D] and [M, D] respectively,
@@ -141,8 +149,8 @@ class Go1HighLevelWrapper(EmptyWrapper):
         chamfer_dist = torch.mean(min_dist_A_to_B) + torch.mean(min_dist_B_to_A)
 
         return chamfer_dist
+            
 
-    # The rest of the methods would follow the same pattern of tensor conversion where applicable.
 
     def _init_extras(self, obs):
 
@@ -167,12 +175,6 @@ class Go1HighLevelWrapper(EmptyWrapper):
                          self.root_states_npc[:, 3:7].unsqueeze(1).repeat(1, self.num_agents, 1)], dim=2)
 
         self.last_box_pos = None
-        # initialize last target distance
-        current_pos_tensor = obs_buf.base_pos[:, :2]  # Shape: [num_envs * num_agents, 2]
-        target_points_for_envs = self.target_points[-1, 0, :2].unsqueeze(0).repeat(current_pos_tensor.shape[0], 1)
-        self.last_target_distance = torch.norm(current_pos_tensor - target_points_for_envs, dim=1)
-        self.last_target_distance = self.last_target_distance.view(self.env.num_envs, self.num_agents, 1)
-    
 
         return obs
 
@@ -180,9 +182,9 @@ class Go1HighLevelWrapper(EmptyWrapper):
         # Clear previous lines
         self.env.gym.clear_lines(self.env.viewer)
         
-        #self.draw_spheres(self.target_points)
-        #self.draw_smooth_path(self.interpolated_path1, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 1 in magenta
-        #self.draw_smooth_path(self.interpolated_path2, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 2 in cyan
+        self.draw_spheres(self.target_points)
+        self.draw_smooth_path(self.interpolated_path1, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 1 in magenta
+        self.draw_smooth_path(self.interpolated_path2, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 2 in cyan
 
 
 
@@ -201,7 +203,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
         
         base_pos = obs_buf.base_pos
         current_pos = base_pos[:, :2]
-        self.agent_path = torch.cat([self.agent_path, current_pos], dim=0)
+        self.agent_path = torch.cat([self.agent_path, current_pos.unsqueeze(0)], dim=0)
         max_length = len(self.interpolated_path1)
         if self.agent_path.shape[0] >= max_length:
             self.agent_path = self.agent_path[-max_length:, :]
@@ -215,66 +217,66 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
         self.reward_buffer["step count"] += 1
 
-        reward = torch.zeros([self.env.num_envs, self.num_agents], device=self.env.device)
-
-
-       #  Calculate trajectory reward
+        reward = torch.zeros([self.env.num_envs, 1], device=self.env.device)
         if self.target_path_reward_scale != 0:
-            if len(self.agent_path) >= len(self.target_points):
-                interp_points = torch.cat((self.interpolated_path1[:, :2], self.interpolated_path2[:, :2]), dim=0)
-                agent_path_tensor = self.agent_path.reshape(-1, 2)
-                distance = self.chamfer_distance(agent_path_tensor, interp_points)
-                self.reward_buffer["trajectory_reward"] += -distance.item()
-                reward += -distance
-
-        # Target reward with last distance decrease reward
-        if self.target_reward_scale != 0:
-            current_pos_tensor = obs_buf.base_pos[:, :2]  # Shape: [num_envs * num_agents, 2]
-            target_points_for_envs = self.target_points[-1, 0, :2].unsqueeze(0).repeat(current_pos_tensor.shape[0], 1)
-            current_target_distance = torch.norm(current_pos_tensor - target_points_for_envs, dim=1)
-            current_target_distance = current_target_distance.view(self.env.num_envs, self.num_agents, 1)  # Shape: [num_envs, num_agents, 1]
-
-            # Compute change in distance
-            distance_reduction = self.last_target_distance - current_target_distance  # Positive if agent moved closer
-
-            # Apply scaling factor
-            target_reward = self.target_reward_scale * distance_reduction
-
-            # Update rewards
-            reward += target_reward
-
-            # Update last_target_distance
-            self.last_target_distance = current_target_distance.detach()
-
-            # Update reward buffer
-            self.reward_buffer["target_reward"] += torch.sum(target_reward).cpu()
+            if len(self.agent_path) >= len(self.interpolated_path1):
+                # Convert target points to torch tensor
+                target_points_xy = torch.tensor(self.interpolated_path1[:, :2], device=self.env.device)
+                interp_points = torch.tensor([self.interpolated_path1[:, :2], self.interpolated_path2[:, :2]], device=self.env.device)
+                interp_points = interp_points.reshape(-1, 2, 2)
 
 
-        # Compute target reward per agent
-        #if self.target_reward_scale != 0:
-        #    current_pos_tensor = current_pos[:, :2]
-        #    self.target_points = self.target_points.to(self.env.device)
-        #    target_points_for_envs = self.target_points[-1, 0, :2]  # Shape: [2]
-        #    target_points_for_envs = target_points_for_envs.unsqueeze(0).repeat(current_pos_tensor.shape[0], 1)
-        #    target_distance = torch.norm(current_pos_tensor - target_points_for_envs, dim=1)
-        #    target_reward = -self.target_path_reward_scale * target_distance
-        #    target_reward = target_reward.view(self.env.num_envs, self.num_agents)
-        #    reward += target_reward
-        #    self.reward_buffer["target_reward"] += torch.sum(target_reward).cpu()
+                # Ensure the agent path and target path are of the same length
+                agent_path_tensor = self.agent_path[-len(interp_points):, :]
 
-        # Adjust box movement reward to per agent
+                # Compute MSE loss
+                distance = torch.nn.functional.mse_loss(agent_path_tensor, interp_points, reduction="sum")
+
+                # Use the negative distance as the reward
+                trajectory_reward = -distance
+                self.reward_buffer["trajectory_reward"] += trajectory_reward
+                reward += trajectory_reward
+
+        # Calculate trajectory reward
+        #if self.target_path_reward_scale != 0:
+        #    if len(self.agent_path) >= len(self.target_points):
+        #        # target_points_xy = [points[:,:2] for points in self.target_points]
+        #        interp_points = np.array([self.interpolated_path1[:, :2], self.interpolated_path2[:, :2]])
+        #        interp_points = interp_points.reshape(-1, 2, 2)
+
+        #        interp_points = np.concatenate(interp_points, axis=0)
+        #        agent_path_np = self.agent_path.cpu().numpy().reshape(-1, 2)
+        #        distance, _ = fastdtw(agent_path_np, interp_points, dist=euclidean)
+        #        self.reward_buffer["trajectory_reward"] += -distance
+        #        reward += -distance
+
         if self.box_x_movement_reward_scale != 0:
-            if self.last_box_pos is not None:
+            if self.last_box_pos != None:
                 x_movement = (box_pos - self.last_box_pos)[:, 0]
                 x_movement[self.env.reset_ids] = 0
                 box_x_movement_reward = self.box_x_movement_reward_scale * x_movement
-                box_x_movement_reward = box_x_movement_reward.unsqueeze(1).repeat(1, self.num_agents)
-                reward += box_x_movement_reward
+                reward[:, 0] += box_x_movement_reward
                 self.reward_buffer["box movement reward"] += torch.sum(box_x_movement_reward).cpu()
 
-        # Flatten reward if necessary
-       # reward = reward.view(-1, 1)
-        #print(f'Reward shape: {reward.shape}')
+
+        if self.target_reward_scale != 0:
+            current_pos_cpu = current_pos.cpu().numpy()[:2]
+            self.target_points = np.array(self.target_points)
+            target_distance = torch.sum(torch.abs(torch.tensor(self.target_points[-1, :, :2] - np.array(current_pos_cpu))))
+            target_reward = -self.target_path_reward_scale * target_distance
+            reward += target_reward
+            self.reward_buffer["target_reward"] += torch.sum(target_reward).cpu()
+
+
+        if self.box_x_movement_reward_scale != 0:
+            if self.last_box_pos != None:
+                x_movement = (box_pos - self.last_box_pos)[:, 0]
+                x_movement[self.env.reset_ids] = 0
+                box_x_movement_reward = self.box_x_movement_reward_scale * x_movement
+                reward[:, 0] += box_x_movement_reward
+                self.reward_buffer["box movement reward"] += torch.sum(box_x_movement_reward).cpu()
+        
+        reward = reward.repeat(1, self.num_agents)
 
         self.last_box_pos = copy(box_pos)
 
