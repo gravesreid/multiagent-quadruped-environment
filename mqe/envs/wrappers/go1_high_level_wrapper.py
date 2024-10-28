@@ -171,7 +171,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
         current_pos_tensor = obs_buf.base_pos[:, :2]  # Shape: [num_envs * num_agents, 2]
         target_points_for_envs = self.target_points[-1, 0, :2].unsqueeze(0).repeat(current_pos_tensor.shape[0], 1)
         self.last_target_distance = torch.norm(current_pos_tensor - target_points_for_envs, dim=1)
-        self.last_target_distance = self.last_target_distance.view(self.env.num_envs, self.num_agents, 1)
+        self.last_target_distance = self.last_target_distance.view(self.env.num_envs, self.num_agents)
     
 
         return obs
@@ -232,7 +232,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
             current_pos_tensor = obs_buf.base_pos[:, :2]  # Shape: [num_envs * num_agents, 2]
             target_points_for_envs = self.target_points[-1, 0, :2].unsqueeze(0).repeat(current_pos_tensor.shape[0], 1)
             current_target_distance = torch.norm(current_pos_tensor - target_points_for_envs, dim=1)
-            current_target_distance = current_target_distance.view(self.env.num_envs, self.num_agents, 1)  # Shape: [num_envs, num_agents, 1]
+            current_target_distance = current_target_distance.view(self.env.num_envs, self.num_agents)  # Shape: [num_envs, num_agents, 1]
 
             # Compute change in distance
             distance_reduction = self.last_target_distance - current_target_distance  # Positive if agent moved closer
