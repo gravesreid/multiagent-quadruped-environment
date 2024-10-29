@@ -6,6 +6,7 @@ from mqe.envs.npc.go1_object import Go1Object
 from mqe.envs.npc.go1_football_defender import Go1FootballDefender
 from mqe.envs.npc.go1_double_object import Go1DoubleObject
 from mqe.envs.npc.go1_minimal_object import MinimalGo1Object
+from mqe.envs.npc.go1_multi_object import MultiObjectGo1Object
 
 # configs
 from mqe.envs.field.legged_robot_field_config import LeggedRobotFieldCfg
@@ -23,6 +24,7 @@ from mqe.envs.configs.go1_bridge_config import Go1BridgeCfg
 from mqe.envs.configs.go1_high_level_config import Go1HighLevelCfg
 from mqe.envs.configs.go1_double_mid_level_config import Go1DoubleObjectCfg
 from mqe.envs.configs.go1_minimal_config import MinimalConfig
+from mqe.envs.configs.go1_multi_object_config import MultiObjectConfig
 
 # wrappers
 from mqe.envs.wrappers.empty_wrapper import EmptyWrapper
@@ -38,6 +40,7 @@ from mqe.envs.wrappers.go1_bridge_wrapper import Go1BridgeWrapper
 from mqe.envs.wrappers.go1_high_level_wrapper import Go1HighLevelWrapper
 from mqe.envs.wrappers.go1_double_mid_level_wrapper import Go1DoubleObjectWrapper
 from mqe.envs.wrappers.go1_minimal_wrapper import MinimalWrapper
+from mqe.envs.wrappers.go1_multi_object_wrapper import MultiObjectWrapper
 
 from mqe.utils import get_args, make_env
 
@@ -124,6 +127,12 @@ ENV_DICT = {
         "config": MinimalConfig,
         "wrapper": MinimalWrapper
     },
+    "go1multiobject": {
+        "class": MultiObjectGo1Object,
+        "config": MultiObjectConfig,
+        "wrapper": MultiObjectWrapper
+    },
+
 
     # "go1door": {
     #     "class": Go1Object,
