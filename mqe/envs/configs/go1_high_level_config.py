@@ -9,7 +9,7 @@ class Go1HighLevelCfg(Go1Cfg):
         num_envs = 1
         num_agents = 2
         num_npcs = 1
-        episode_length_s = 15
+        episode_length_s = 10
     
     class asset(Go1Cfg.asset):
         terminate_after_contacts_on = []
@@ -111,8 +111,9 @@ class Go1HighLevelCfg(Go1Cfg):
     class rewards(Go1Cfg.rewards):
         class scales:
             box_x_movement_reward_scale = 0
-            target_path_reward_scale = 1
-            target_reward_scale = 2
+            target_path_reward_scale = 10
+            target_reward_scale = 5
+            success_reward_scale = 20
             # tracking_ang_vel = 0.05
             # world_vel_l2norm = -1.
             # legs_energy_substeps = -1e-5

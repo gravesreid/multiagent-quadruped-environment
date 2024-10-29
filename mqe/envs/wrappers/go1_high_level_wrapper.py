@@ -25,6 +25,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
             "step count": 0,
             "target_reward": 0,
             "trajectory_reward": 0,
+            "success_reward": 0,
         }
 
         # Simulated path that rl policy spits out
@@ -178,7 +179,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
     def step(self, action):
         # Clear previous lines
-        self.env.gym.clear_lines(self.env.viewer)
+        #self.env.gym.clear_lines(self.env.viewer)
         
         #self.draw_spheres(self.target_points)
         #self.draw_smooth_path(self.interpolated_path1, gymapi.Vec3(1.0, 0.0, 0.0))  # Path 1 in magenta
@@ -218,6 +219,7 @@ class Go1HighLevelWrapper(EmptyWrapper):
         reward = torch.zeros([self.env.num_envs, self.num_agents], device=self.env.device)
 
 
+
        #  Calculate trajectory reward
         if self.target_path_reward_scale != 0:
             if len(self.agent_path) >= len(self.target_points):
@@ -248,6 +250,18 @@ class Go1HighLevelWrapper(EmptyWrapper):
 
             # Update reward buffer
             self.reward_buffer["target_reward"] += torch.sum(target_reward).cpu()
+
+            # Check for success and apply success reward
+        if self.success_reward_scale != 0:
+            # Create a mask of agents that have reached the target
+            success_mask = current_target_distance < 0.1  # Shape: [num_envs, num_agents], dtype: torch.bool
+
+            # Apply success reward to those agents
+            success_reward = self.success_reward_scale * success_mask.float()  # Convert bool to float
+            reward += success_reward
+
+            # Update reward buffer
+            self.reward_buffer["success_reward"] += torch.sum(success_reward).cpu()
 
 
         # Compute target reward per agent
