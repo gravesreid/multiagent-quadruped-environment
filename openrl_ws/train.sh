@@ -13,7 +13,7 @@ task="go1multiobject"
 # task="go1pushbox"
 random_seed=0
 device=0
-num_envs=1
+num_envs=100
 num_steps=60000000
 
 #algo="jrpo"

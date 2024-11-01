@@ -6,35 +6,42 @@ class MultiObjectConfig(Go1Cfg):
         env_name = "go1multiobject"
         num_envs = 1
         num_agents = 1
-        num_npcs = 4
+        num_npcs = 5
         episode_length_s = 10
 
     class assets(Go1Cfg.asset):
         npc_assets = [
             dict(
-                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/ball.urdf",
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/pitcher/model.urdf",
                 name_npc="ball",
                 npc_collision=False,
                 fix_npc_base_link=False,
                 npc_gravity=True
             ),
             dict(
-                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/sheep.urdf",
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/scissors/model.urdf",
                 name_npc="sheep",
                 npc_collision=False,
                 fix_npc_base_link=False,
                 npc_gravity=True
             ),
             dict(
-                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/box.urdf",
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/green_cup/model.urdf",
                 name_npc="box",
                 npc_collision=False,
                 fix_npc_base_link=False,
                 npc_gravity=True
             ),
             dict(
-                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/sheep.urdf",
-                name_npc="cylinder",
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/table.urdf",
+                name_npc="table",
+                npc_collision=False,
+                fix_npc_base_link=False,
+                npc_gravity=True
+            ),
+            dict(
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/knife/model.urdf",
+                name_npc="lego",
                 npc_collision=False,
                 fix_npc_base_link=False,
                 npc_gravity=True
@@ -115,6 +122,12 @@ class MultiObjectConfig(Go1Cfg):
             ),
             init_state_class(
                 pos=[1, 0, 0.15],
+                rot=[0.0, 0.0, 0.0, 1.0],
+                lin_vel=[0.0, 0.0, 0.0],
+                ang_vel=[0.0, 0.0, 0.0],
+            ),
+            init_state_class(
+                pos=[0, 0, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
