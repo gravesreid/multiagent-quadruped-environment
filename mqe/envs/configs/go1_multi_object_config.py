@@ -12,8 +12,8 @@ class MultiObjectConfig(Go1Cfg):
     class assets(Go1Cfg.asset):
         npc_assets = [
             dict(
-                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/pitcher/model.urdf",
-                name_npc="ball",
+                file_npc="{LEGGED_GYM_ROOT_DIR}/resources/objects/urdf_models/models/plastic_banana/model.urdf",
+                name_npc="banana",
                 npc_collision=False,
                 fix_npc_base_link=False,
                 npc_gravity=True
@@ -109,31 +109,31 @@ class MultiObjectConfig(Go1Cfg):
         # Define init_states_npc as a class attribute
         init_states_npc = [
             init_state_class(
-                pos=[0, 0, 0.15],
+                pos=[5, .5, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
             ),
             init_state_class(
-                pos=[1, 1, 0.15],
+                pos=[6, -.5, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
             ),
             init_state_class(
-                pos=[1, 0, 0.15],
+                pos=[4, -1.5, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
             ),
             init_state_class(
-                pos=[0, 0, 0.15],
+                pos=[3, -1, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
             ),
             init_state_class(
-                pos=[0, 0, 0.15],
+                pos=[2, 1, 0.15],
                 rot=[0.0, 0.0, 0.0, 1.0],
                 lin_vel=[0.0, 0.0, 0.0],
                 ang_vel=[0.0, 0.0, 0.0],
@@ -159,16 +159,17 @@ class MultiObjectConfig(Go1Cfg):
             y= [-0.1, 0.1],
         )
         init_npc_base_pos_range = dict(
-            x= [2, 6],
-            y= [-2, 2],
+            x= [-.1, .1],
+            y= [-.1, .1],
         )
 
     class rewards(Go1Cfg.rewards):
         class scales:
             #box_x_movement_reward_scale = 10
-            ball_approach_reward_scale = 10
+            goal_approach_reward_scale = 10
             contact_punishment_scale = -2
             angle_punishment_scale = -0.1
+            success_reward_scale = 50
             # tracking_ang_vel = 0.05
             # world_vel_l2norm = -1.
             # legs_energy_substeps = -1e-5
