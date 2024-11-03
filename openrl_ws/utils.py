@@ -84,6 +84,8 @@ class mqe_openrl_wrapper(gym.Wrapper):
 
         obs, reward, termination, info = self.env.step(actions)
 
+        print(f"obs: {obs}, reward: {reward}, termination: {termination}, info: {info}")
+
         obs = obs.cpu().numpy()
         rewards = reward.cpu().unsqueeze(-1).numpy()
         dones = termination.cpu().unsqueeze(-1).repeat(1, self.agent_num).numpy().astype(bool)

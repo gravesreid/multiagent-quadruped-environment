@@ -16,6 +16,8 @@ class MinimalGo1Object(Go1):
         self.fix_npc_base_link = getattr(cfg.asset, "fix_npc_base_link", False)
         self.npc_gravity = getattr(cfg.asset, "npc_gravity", True)
 
+        # Initialize any additional attributes if needed
+        self.last_distance_to_target = 0
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
     
     def _step_npc(self):

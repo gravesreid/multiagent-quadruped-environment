@@ -90,50 +90,63 @@ class MinimalWrapper(EmptyWrapper):
 
 
         return obs
-    
+        
     def step(self, action):
         action = torch.clip(action, -1, 1)
-        obs_buf, _, termination, info = self.env.step((action * self.action_scale).reshape(-1, self.action_space.shape[0]))
+        obs_buf, _, termination, info = self.env.step(
+            (action * self.action_scale).reshape(-1, self.action_space.shape[0])
+        )
         
+        base_pos = obs_buf.base_pos  # Get agent's position
+        distance_to_target = torch.norm(
+            base_pos[:, :2] - self.target_point[:, :2], p=2, dim=1
+        )
+        reward = torch.zeros([self.env.num_envs, self.num_agents], device=self.env.device)
+        
+        # Reward for moving closer to the target
+        distance_reduction = self.last_distance_to_target - distance_to_target
+        approach_reward = distance_reduction * self.target_approach_reward_scale
+        reward += approach_reward
+        self.reward_buffer["target approach reward"] += torch.sum(approach_reward).cpu()
+        self.last_distance_to_target = distance_to_target.detach()
+        
+        # Check if agent is close enough to switch to the next target
+        reached_target = distance_to_target < 0.5
+        if reached_target.any():
+            self.current_target_index += 1
+            if self.current_target_index < len(self.target_points):
+                self.target_point = self.target_points[self.current_target_index]
+                self.last_distance_to_target = torch.norm(
+                    base_pos[:, :2] - self.target_point[:, :2], p=2, dim=1
+                )
+            else:
+                success_reward = self.success_reward_scale * reached_target.float()
+                reward += success_reward
+                self.reward_buffer["success reward"] += torch.sum(success_reward).cpu()
+        
+        # Process obs_buf into obs, similar to your reset() method and the example
         if getattr(self, "gate_pos", None) is None:
             self._init_extras(obs_buf)
 
-        ball_pos = self.root_states_npc[:,:3].reshape(self.num_envs, 3) - self.env_origins
+        # Update root_states_npc if necessary
+        if not hasattr(self, 'root_states_npc'):
+            self.root_states_npc = self.env.root_states_npc.clone()
+        else:
+            self.root_states_npc.copy_(self.env.root_states_npc)
+        
+        # Extract and process observations
+        ball_pos = self.root_states_npc[:, :3].reshape(self.num_envs, 3) - self.env_origins
         ball_pos = ball_pos.unsqueeze(1).repeat(1, self.num_agents, 1)
         ball_vel = self.root_states_npc[:, 7:10].reshape(self.num_envs, 3).unsqueeze(1).repeat(1, self.num_agents, 1)
-        ball_acc = self.root_states_npc[:, 10:12].reshape(self.num_envs, 2).unsqueeze(1).repeat(1, self.num_agents, 1)
-
+        padding = torch.zeros([self.num_envs, self.num_agents, 3], device=self.env.device)
+        
         base_pos = obs_buf.base_pos
         base_rpy = obs_buf.base_rpy
-        base_info = torch.cat([base_pos, base_rpy], dim=1).reshape([self.env.num_envs, self.env.num_agents, -1])[:, :2, :]
-        obs = torch.cat([self.obs_ids, base_info, torch.flip(base_info, [1]), ball_pos, ball_vel, ball_acc], dim=2)
-
-        approach_angle = torch.atan2(ball_pos[:, 0, 1] - base_pos[:, 1], ball_pos[:, 0, 0] - base_pos[:, 0])
-
-        self.reward_buffer["step count"] += 1
-        reward = torch.zeros([self.env.num_envs, self.num_agents], device=self.env.device)
-
-        if self.ball_approach_reward_scale != 0:
-            distance_to_ball = torch.norm(base_pos[:, :2] - ball_pos[:, 0, :2], p=2, dim=1)
-            if not hasattr(self, "last_distance_to_ball"):
-                self.last_distance_to_ball = copy(distance_to_ball)
-            ball_approach_reward = (self.last_distance_to_ball - distance_to_ball).reshape(self.num_envs, -1).sum(dim=1, keepdim=True)
-            ball_approach_reward[self.env.reset_ids] = 0
-            ball_approach_reward *= self.ball_approach_reward_scale
-            reward += ball_approach_reward.repeat(1, self.env.num_agents)
-            self.last_distance_to_ball = copy(distance_to_ball)
-            self.reward_buffer["ball approach reward"] += torch.sum(ball_approach_reward).cpu()
-        # contact punishment
-        if self.contact_punishment_scale != 0:
-            collide_reward = self.contact_punishment_scale * self.env.collide_buf
-            reward += collide_reward.unsqueeze(1).repeat(1, self.num_agents)
-            self.reward_buffer["contact punishment"] += torch.sum(collide_reward).cpu()
-
-        # angle punishment
-        if self.angle_punishment_scale != 0:
-            angle_punishment = self.angle_punishment_scale * torch.abs(approach_angle).unsqueeze(1).repeat(1, self.num_agents)
-            reward += angle_punishment
-            self.reward_buffer["angle punishment"] += torch.sum(angle_punishment).cpu()
-
-        return obs, reward, termination, info
-
+        base_info = torch.cat([base_pos, base_rpy], dim=1).reshape(
+            [self.env.num_envs, self.num_agents, -1]
+        )[:, :2, :]
+        obs = torch.cat(
+            [base_info, torch.flip(base_info, [1]), ball_pos, ball_vel, padding], dim=2
+        )
+        
+        return obs.detach().cpu().numpy(), reward, termination, info

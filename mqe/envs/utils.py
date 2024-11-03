@@ -113,7 +113,8 @@ ENV_DICT = {
         "wrapper": Go1BridgeWrapper
     },
     "go1highlevel": {
-        "class": Go1Object,
+        # "class": Go1Object,
+        "class": MinimalGo1Object,
         "config": Go1HighLevelCfg,
         "wrapper": Go1HighLevelWrapper
     },

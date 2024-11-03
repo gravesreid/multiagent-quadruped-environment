@@ -1,26 +1,22 @@
-import numpy as np
-from mqe.utils.helpers import merge_dict
 from mqe.envs.go1.go1 import Go1Cfg
+from mqe.utils.helpers import merge_dict
 
 class Go1HighLevelCfg(Go1Cfg):
-
     class env(Go1Cfg.env):
-        env_name = "go1pushbox"
+        env_name = "go1minimal"
         num_envs = 1
-        num_agents = 2
+        num_agents = 1
         num_npcs = 1
         episode_length_s = 10
-    
+
     class asset(Go1Cfg.asset):
-        terminate_after_contacts_on = []
-        file_npc = "{LEGGED_GYM_ROOT_DIR}/resources/objects/box.urdf"
-        name_npc = "box"
-        npc_collision = True
+        file_npc = "{LEGGED_GYM_ROOT_DIR}/resources/objects/ball.urdf"
+        name_npc = "ball"
+        npc_collision = False
         fix_npc_base_link = False
         npc_gravity = True
-    
-    class terrain(Go1Cfg.terrain):
 
+    class terrain(Go1Cfg.terrain):
         num_rows = 1
         num_cols = 1
 
@@ -40,10 +36,10 @@ class Go1HighLevelCfg(Go1Cfg):
             ),
             gate = dict(
                 block_length = 5.0,
-                width = 1.5,
+                width = 5,
                 depth = 0.1, # size along the forward axis
                 offset = (0, 0),
-                random = (0, 0.5),
+                random = (0, 0),
             ),
             wall = dict(
                 block_length = 0.1
@@ -53,7 +49,7 @@ class Go1HighLevelCfg(Go1Cfg):
             no_perlin_threshold = 0.06,
             add_perlin_noise = False,
        ))
-        
+    
     class command(Go1Cfg.command):
 
         class cfg(Go1Cfg.command.cfg):
@@ -69,22 +65,15 @@ class Go1HighLevelCfg(Go1Cfg):
                 lin_vel = [0.0, 0.0, 0.0],
                 ang_vel = [0.0, 0.0, 0.0],
             ),
-            init_state_class(
-                pos = [0.0, 0.0, 0.42],
-                rot = [0.0, 0.0, 0.0, 1.0],
-                lin_vel = [0.0, 0.0, 0.0],
-                ang_vel = [0.0, 0.0, 0.0],
-            ),
         ]
         init_states_npc = [
             init_state_class(
-                pos = [2.5, 0.0, 0.6],
+                pos = [0, 0, 0.15],
                 rot = [0.0, 0.0, 0.0, 1.0],
                 lin_vel = [0.0, 0.0, 0.0],
                 ang_vel = [0.0, 0.0, 0.0],
             ),
         ]
-
     class control(Go1Cfg.control):
         control_type = 'C'
 
@@ -104,16 +93,16 @@ class Go1HighLevelCfg(Go1Cfg):
             y= [-0.1, 0.1],
         )
         init_npc_base_pos_range = dict(
-            x= [-0.5, 0.5],
-            y= [-0.5, 0.5],
+            x= [2, 6],
+            y= [-2.25, 2.25],
         )
 
     class rewards(Go1Cfg.rewards):
         class scales:
-            box_x_movement_reward_scale = 0
-            target_path_reward_scale = 10
-            target_reward_scale = 5
-            success_reward_scale = 20
+            #box_x_movement_reward_scale = 10
+            ball_approach_reward_scale = 10
+            contact_punishment_scale = -2
+            angle_punishment_scale = -0.1
             # tracking_ang_vel = 0.05
             # world_vel_l2norm = -1.
             # legs_energy_substeps = -1e-5
@@ -126,3 +115,4 @@ class Go1HighLevelCfg(Go1Cfg):
     class viewer(Go1Cfg.viewer):
         pos = [0., 6., 5.]  # [m]
         lookat = [4., 6., 0.]  # [m]
+        
